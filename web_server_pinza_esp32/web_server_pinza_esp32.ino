@@ -1,83 +1,66 @@
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WebServer.h>
 #include <ArduinoJson.h>
 #include <ESP32Servo.h>
+#include <WebServer.h>
+#include <WiFi.h>
 
 #define LED 2
 
+// Datos para conectar al wifi la placa
 const char *SSID = "nombre_wifi";
 const char *PWD = "pass_wifi";
-
-// Setting PWM frequency, channels and bit resolution
-const bool flag = 8;
 
 WebServer server(80);
 
 StaticJsonDocument<250> jsonDocument;
 char buffer[250];
 
-Servo myservo;
-int servoPos = 0;
-int buttonState = 0;
-int lastButtonState = 0;
+Servo servoPinza;
+int anguloPinza = 0;
+const int pinPinza = 13;
 
-void setup_routing() {     
-  server.on("/led", HTTP_POST, handlePost);
-          
-  server.begin();    
-}
- 
-void create_json(char *tag, float value, char *unit) {  
-  jsonDocument.clear();  
-  jsonDocument["type"] = tag;
-  jsonDocument["value"] = value;
-  jsonDocument["unit"] = unit;
-  serializeJson(jsonDocument, buffer);
-}
- 
-void add_json_object(char *tag, float value, char *unit) {
-  JsonObject obj = jsonDocument.createNestedObject();
-  obj["type"] = tag;
-  obj["value"] = value;
-  obj["unit"] = unit; 
+void setup_routing() {  // esta funcion se llama al principio, y declara las
+                        // direcciones http para controlar los motores
+  server.on("/pinza", HTTP_POST, handlePinza);
+
+  server.begin();
 }
 
-void handlePost() {
+void handlePinza() {  // estos metodos se encargan de mover cada parte, se
+                      // tienen que mapear con las direcciones del routing
   if (server.hasArg("plain") == false) {
   }
   String body = server.arg("plain");
   deserializeJson(jsonDocument, body);
 
-  bool state = jsonDocument["ligth"];
-  
   togglePinza();
+
   char message[50];
 
-  sprintf(message, "{ \"servo1\" : %d }", servoPos);
+  sprintf(message, "{ \"servo1\" : %d }", anguloPinza);
   server.send(200, "application/json", message);
 }
 
 void setupPinza() {
   Serial.print("setup");
-  myservo.attach(13);
-  myservo.write(servoPos);
+  servoPinza.attach(pinPinza);
+  servoPinza.write(anguloPinza);
 }
 
 void togglePinza() {
-  if (servoPos == 0) {
+  if (anguloPinza == 0) {
     Serial.println("open pinza");
-    servoPos = 180;
+    anguloPinza = 180;
   } else {
     Serial.println("close pinza");
-    servoPos = 0;
+    anguloPinza = 0;
   }
-  myservo.write(servoPos);
+  servoPinza.write(anguloPinza);
 }
 
-void setup() {     
-  pinMode(LED,OUTPUT);
-  Serial.begin(115200); 
+void setup() {  // este metodo es el mismo que el del arduino
+  pinMode(LED, OUTPUT);
+  Serial.begin(115200);
 
   Serial.print("Connecting to Wi-Fi");
   WiFi.begin(SSID, PWD);
@@ -85,14 +68,28 @@ void setup() {
     Serial.print(".");
     delay(500);
   }
- 
+
   Serial.print("Connected! IP Address: ");
-  Serial.println(WiFi.localIP());  
+  Serial.println(WiFi.localIP());
   setupPinza();
-  setup_routing();     
-   
-}    
-       
-void loop() {    
-  server.handleClient();     
+  setup_routing();
 }
+
+void loop() {  // este metodo es el mismo que el arduino
+  server.handleClient();
+}
+
+// void create_json(char *tag, float value, char *unit) {
+//   jsonDocument.clear();
+//   jsonDocument["type"] = tag;
+//   jsonDocument["value"] = value;
+//   jsonDocument["unit"] = unit;
+//   serializeJson(jsonDocument, buffer);
+// }
+
+// void add_json_object(char *tag, float value, char *unit) {
+//   JsonObject obj = jsonDocument.createNestedObject();
+//   obj["type"] = tag;
+//   obj["value"] = value;
+//   obj["unit"] = unit;
+// }
